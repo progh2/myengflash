@@ -529,9 +529,6 @@ class FlashCardApp {
             console.error('단어 업데이트 실패:', error);
         }
     }
-            console.error('단어 업데이트 실패:', error);
-        }
-    }
 
     toggleStar() {
         this.currentWord.is_starred = !this.currentWord.is_starred;
@@ -689,7 +686,7 @@ ${praiseMessage}
     async deleteWord(wordId) {
         if (confirm('정말로 이 단어를 삭제하시겠습니까?')) {
             try {
-                await fetch(`tables/words/${wordId}`, { method: 'DELETE' });
+                this.db.delete('words', wordId);
                 this.loadWordList();
             } catch (error) {
                 console.error('단어 삭제 실패:', error);
