@@ -7,6 +7,22 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* 터치 디바이스용 스타일 개선 */
+        button, .touch-friendly {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        button:active, .touch-friendly:active {
+            transform: scale(0.98);
+            transition: transform 0.1s;
+        }
+        
         .fade-in {
             animation: fadeIn 0.5s ease-in;
         }
@@ -41,13 +57,13 @@
                     <i class="fas fa-graduation-cap mr-2"></i>플래시 카드
                 </h1>
                 <nav class="space-x-4">
-                    <button id="studyBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                    <button id="studyBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition touch-friendly">
                         <i class="fas fa-play mr-2"></i>학습하기
                     </button>
-                    <button id="manageBtn" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+                    <button id="manageBtn" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition touch-friendly">
                         <i class="fas fa-cog mr-2"></i>단어관리
                     </button>
-                    <button id="statsBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                    <button id="statsBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition touch-friendly">
                         <i class="fas fa-chart-bar mr-2"></i>통계
                     </button>
                 </nav>
@@ -234,6 +250,8 @@
         </div>
     </div>
 
+    <script src="js/localStorageDB.js"></script>
+    <script src="js/touchHandler.js"></script>
     <script src="js/app.js"></script>
     <script>
         // 디버깅용 전역 함수

@@ -10,6 +10,8 @@ class FlashCardApp {
         this.totalAnswers = 0;
         this.isFlipped = false;
         this.quizMode = false;
+        this.db = new LocalStorageDB(); // 로컬 스토리지 DB 사용
+        this.touchHandler = new TouchClickHandler(); // 터치 핸들러 추가
         
         // DOM이 로드된 후 초기화
         if (document.readyState === 'loading') {
@@ -26,35 +28,82 @@ class FlashCardApp {
     }
 
     initializeEventListeners() {
-        // 네비게이션 버튼
-        document.getElementById('studyBtn').addEventListener('click', () => this.switchMode('study'));
-        document.getElementById('manageBtn').addEventListener('click', () => this.switchMode('manage'));
-        document.getElementById('statsBtn').addEventListener('click', () => this.switchMode('stats'));
-        document.getElementById('startBtn').addEventListener('click', () => this.startStudy());
-        document.getElementById('startBtn').addEventListener('click', () => this.startStudy());
-
-        // 학습 모드
-        // document.getElementById('flashCard').addEventListener('click', () => this.flipCard()); // 플립 기능 제거
-        document.getElementById('starBtn').addEventListener('click', () => this.toggleStar());
-        document.getElementById('nextBtn').addEventListener('click', () => this.nextWord());
-
-        // 단어 관리
-        document.getElementById('addWordBtn').addEventListener('click', () => this.addWord());
-        document.getElementById('importBtn').addEventListener('click', () => this.importWords());
-        document.getElementById('exportBtn').addEventListener('click', () => this.exportWords());
-        document.getElementById('fileInput').addEventListener('change', (e) => this.handleFileImport(e));
-
-        // 모달
-        document.getElementById('modalCancel').addEventListener('click', () => this.closeModal());
-        document.getElementById('modalConfirm').addEventListener('click', () => this.confirmModal());
-
-        // Enter 키 처리
-        document.getElementById('newWord').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.addWord();
+        // 네비게이션 버튼 - 터치/클릭 이벤트 처리
+        const navButtons = [
+            { id: 'studyBtn', handler: () => this.switchMode('study') },
+            { id: 'manageBtn', handler: () => this.switchMode('manage') },
+            { id: 'statsBtn', handler: () => this.switchMode('stats') },
+            { id: 'startBtn', handler: () => this.startStudy() }
+        ];
+        
+        navButtons.forEach(({ id, handler }) => {
+            const element = document.getElementById(id);
+            if (element) {
+                this.touchHandler.handleMobileClick(element, handler);
+            }
         });
-        document.getElementById('newMeaning').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.addWord();
+
+        // 학습 모드 버튼들
+        const studyButtons = [
+            { id: 'starBtn', handler: () => this.toggleStar() },
+            { id: 'nextBtn', handler: () => this.nextWord() }
+        ];
+        
+        studyButtons.forEach(({ id, handler }) => {
+            const element = document.getElementById(id);
+            if (element) {
+                this.touchHandler.handleMobileClick(element, handler);
+            }
         });
+
+        // 단어 관리 버튼들
+        const manageButtons = [
+            { id: 'addWordBtn', handler: () => this.addWord() },
+            { id: 'importBtn', handler: () => this.importWords() },
+            { id: 'exportBtn', handler: () => this.exportWords() }
+        ];
+        
+        manageButtons.forEach(({ id, handler }) => {
+            const element = document.getElementById(id);
+            if (element) {
+                this.touchHandler.handleMobileClick(element, handler);
+            }
+        });
+
+        // 파일 입력 (변경 이벤트는 그대로)
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => this.handleFileImport(e));
+        }
+
+        // 모달 버튼들
+        const modalButtons = [
+            { id: 'modalCancel', handler: () => this.closeModal() },
+            { id: 'modalConfirm', handler: () => this.confirmModal() }
+        ];
+        
+        modalButtons.forEach(({ id, handler }) => {
+            const element = document.getElementById(id);
+            if (element) {
+                this.touchHandler.handleMobileClick(element, handler);
+            }
+        });
+
+        // Enter 키 처리 (그대로 유지)
+        const newWordInput = document.getElementById('newWord');
+        const newMeaningInput = document.getElementById('newMeaning');
+        
+        if (newWordInput) {
+            newWordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.addWord();
+            });
+        }
+        
+        if (newMeaningInput) {
+            newMeaningInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.addWord();
+            });
+        }
     }
 
     switchMode(mode) {
@@ -87,19 +136,18 @@ class FlashCardApp {
 
     async loadWords() {
         try {
-            const response = await fetch('tables/words');
-            const data = await response.json();
+            // 로컬 스토리지에서 단어 가져오기
+            const words = this.db.getAll('words');
+            console.log('Words data loaded:', words);
             
-            console.log('Words data loaded:', data);
-            
-            if (data.data && data.data.length === 0) {
+            if (words.length === 0) {
                 console.log('No words found, adding default words...');
                 // 기본 단어 추가
                 await this.addDefaultWords();
                 return this.loadWords();
             }
             
-            return data.data || [];
+            return words;
         } catch (error) {
             console.error('단어 로딩 실패:', error);
             return [];
@@ -129,7 +177,6 @@ class FlashCardApp {
         const now = new Date().toISOString();
         const word = {
             ...wordData,
-            id: this.generateId(),
             is_starred: false,
             wrong_count: 0,
             correct_count: 0,
@@ -140,13 +187,10 @@ class FlashCardApp {
         };
 
         try {
-            await fetch('tables/words', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(word)
-            });
+            return this.db.save('words', word);
         } catch (error) {
             console.error('단어 추가 실패:', error);
+            return null;
         }
     }
 
@@ -317,7 +361,10 @@ class FlashCardApp {
                     <span>${option}</span>
                 </div>
             `;
-            button.addEventListener('click', () => this.selectAnswer(option));
+            
+            // 터치/클릭 이벤트 처리
+            this.touchHandler.handleMobileClick(button, () => this.selectAnswer(option));
+            
             container.appendChild(button);
         });
     }
@@ -461,7 +508,6 @@ class FlashCardApp {
 
     async saveLearningRecord(isCorrect, selectedAnswer) {
         const record = {
-            id: this.generateId(),
             word_id: this.currentWord.id,
             session_id: this.sessionId,
             is_correct: isCorrect,
@@ -470,11 +516,7 @@ class FlashCardApp {
         };
 
         try {
-            await fetch('tables/learning_records', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(record)
-            });
+            this.db.save('learning_records', record);
         } catch (error) {
             console.error('학습 기록 저장 실패:', error);
         }
@@ -482,11 +524,11 @@ class FlashCardApp {
 
     async updateWord(word) {
         try {
-            await fetch(`tables/words/${word.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(word)
-            });
+            this.db.update('words', word.id, word);
+        } catch (error) {
+            console.error('단어 업데이트 실패:', error);
+        }
+    }
         } catch (error) {
             console.error('단어 업데이트 실패:', error);
         }
@@ -552,11 +594,7 @@ class FlashCardApp {
         };
 
         try {
-            await fetch('tables/session_scores', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(sessionData)
-            });
+            this.db.save('session_scores', sessionData);
         } catch (error) {
             console.error('세션 점수 저장 실패:', error);
         }
@@ -722,9 +760,7 @@ ${praiseMessage}
 
     async loadSessions() {
         try {
-            const response = await fetch('tables/session_scores');
-            const data = await response.json();
-            return data.data || [];
+            return this.db.getAll('session_scores');
         } catch (error) {
             console.error('세션 로딩 실패:', error);
             return [];
