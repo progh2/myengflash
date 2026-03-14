@@ -30,7 +30,7 @@ class FlashCardApp {
     initializeEventListeners() {
         // 네비게이션 버튼 - 터치/클릭 이벤트 처리
         const navButtons = [
-            { id: 'studyBtn', handler: () => this.switchMode('study') },
+            { id: 'studyBtn', handler: () => this.startStudy() },  // 헤더 학습하기도 startStudy 호출
             { id: 'manageBtn', handler: () => this.switchMode('manage') },
             { id: 'statsBtn', handler: () => this.switchMode('stats') },
             { id: 'startBtn', handler: () => this.startStudy() }
@@ -287,6 +287,7 @@ class FlashCardApp {
     }
 
     showCurrentWord() {
+        this._answerLocked = false;  // 새 단어마다 잠금 초기화
         console.log('Showing current word, index:', this.currentIndex, 'total:', this.currentWords?.length);
         
         if (!this.currentWords || this.currentIndex >= this.currentWords.length) {
@@ -412,6 +413,9 @@ class FlashCardApp {
         return Array.from(options).sort(() => Math.random() - 0.5);
     }
 
+    // 답안 선택 중복 호출 방지 플래그
+    _answerLocked = false;
+
     // 칭찬 메시지 배열
     getPraiseMessage() {
         const praises = [
@@ -430,6 +434,10 @@ class FlashCardApp {
     }
 
     async selectAnswer(selectedAnswer) {
+        // 이중 호출 방지 (touchend + click 동시 발생)
+        if (this._answerLocked) return;
+        this._answerLocked = true;
+
         const isCorrect = selectedAnswer === this.currentWord.meaning;
         this.totalAnswers++;
 
@@ -504,6 +512,7 @@ class FlashCardApp {
 
         // 다음 버튼 활성화
         document.getElementById('nextBtn').disabled = false;
+        // 잠금 해제는 하지 않음 — nextWord()에서 showCurrentWord() 호출 시 초기화
     }
 
     async saveLearningRecord(isCorrect, selectedAnswer) {
@@ -576,7 +585,7 @@ class FlashCardApp {
     async finishStudy() {
         const endTime = new Date();
         const duration = Math.floor((endTime - this.sessionStartTime) / 1000 / 60); // 분
-        const score = Math.round((this.correctAnswers / this.totalAnswers) * 100);
+        const score = this.totalAnswers > 0 ? Math.round((this.correctAnswers / this.totalAnswers) * 100) : 0;
 
         const sessionData = {
             id: this.sessionId,
@@ -738,17 +747,23 @@ ${praiseMessage}
         const words = await this.loadWords();
         const sessions = await this.loadSessions();
 
-        document.getElementById('totalWords').textContent = words.length;
-        document.getElementById('starredWords').textContent = words.filter(w => w.is_starred).length;
-        
-        const avgScore = sessions.length > 0 ? 
-            Math.round(sessions.reduce((sum, s) => sum + s.score, 0) / sessions.length) : 0;
-        document.getElementById('avgScore').textContent = `${avgScore}%`;
+        const totalWordsEl = document.getElementById('totalWords');
+        const starredWordsEl = document.getElementById('starredWords');
+        const avgScoreEl = document.getElementById('avgScore');
+        const studyDaysEl = document.getElementById('studyDays');
 
-        const uniqueDays = new Set(sessions.map(s => 
+        // 통계 모드 화면이 아닐 때는 DOM 요소가 없을 수 있으므로 방어 처리
+        if (totalWordsEl) totalWordsEl.textContent = words.length;
+        if (starredWordsEl) starredWordsEl.textContent = words.filter(w => w.is_starred).length;
+
+        const avgScore = sessions.length > 0 ?
+            Math.round(sessions.reduce((sum, s) => sum + s.score, 0) / sessions.length) : 0;
+        if (avgScoreEl) avgScoreEl.textContent = `${avgScore}%`;
+
+        const uniqueDays = new Set(sessions.map(s =>
             new Date(s.start_time).toDateString()
         )).size;
-        document.getElementById('studyDays').textContent = uniqueDays;
+        if (studyDaysEl) studyDaysEl.textContent = uniqueDays;
 
         // 최근 학습 기록
         this.displayRecentSessions(sessions.slice(-5));
@@ -765,6 +780,7 @@ ${praiseMessage}
 
     displayRecentSessions(sessions) {
         const container = document.getElementById('recentSessions');
+        if (!container) return;  // 통계 화면이 아닐 때 방어
         container.innerHTML = '';
 
         if (sessions.length === 0) {
