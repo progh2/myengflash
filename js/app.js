@@ -529,7 +529,6 @@ class FlashCardApp {
             console.error('단어 업데이트 실패:', error);
         }
     }
-        } catch (error) {
             console.error('단어 업데이트 실패:', error);
         }
     }
