@@ -47,28 +47,37 @@ class TouchClickHandler {
     }
     
     // 모바일 브라우저용 특별 처리
+    // touchend 와 click 이 동시에 발생하여 handler 가 2회 호출되는 문제를 방지
     handleMobileClick(element, handler) {
         if (!element) return;
-        
-        let touchEndTime = 0;
-        
+
+        let touchStartTime = 0;
+        let handledByTouch = false;
+
         element.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            touchEndTime = Date.now();
+            touchStartTime = Date.now();
+            handledByTouch = false;
         }, { passive: false });
-        
+
         element.addEventListener('touchend', (e) => {
             e.preventDefault();
-            const touchDuration = Date.now() - touchEndTime;
-            
+            const touchDuration = Date.now() - touchStartTime;
             // 짧은 터치만 클릭으로 인식 (길게 누르기 방지)
             if (touchDuration < 500) {
+                handledByTouch = true;
                 handler(e);
             }
         }, { passive: false });
-        
-        // 데스크톱용 클릭 이벤트
-        element.addEventListener('click', handler);
+
+        // 데스크탑 클릭 이벤트 — 터치로 이미 처리된 경우 무시
+        element.addEventListener('click', (e) => {
+            if (handledByTouch) {
+                handledByTouch = false;
+                return;
+            }
+            handler(e);
+        });
     }
 }
 
