@@ -318,6 +318,12 @@ class FlashCardApp {
             console.error('Word element not found');
         }
         
+        // 카테고리 배지
+        const categoryBadge = document.getElementById('categoryBadge');
+        if (categoryBadge) {
+            categoryBadge.innerHTML = this.getCategoryBadge(this.currentWord.category);
+        }
+
         // 별표 상태
         const starBtn = document.getElementById('starBtn');
         if (starBtn) {
@@ -652,6 +658,17 @@ ${praiseMessage}
         this.loadWordList();
     }
 
+    // 카테고리 배지 색상 반환
+    getCategoryBadge(category) {
+        const map = {
+            '생활':   'bg-green-100 text-green-700',
+            'SW개발': 'bg-blue-100 text-blue-700',
+            '디자인': 'bg-purple-100 text-purple-700',
+        };
+        const cls = map[category] || 'bg-gray-100 text-gray-600';
+        return category ? `<span class="text-xs px-2 py-0.5 rounded-full font-medium ${cls}">${category}</span>` : '';
+    }
+
     async loadWordList() {
         const words = await this.loadWords();
         const container = document.getElementById('wordList');
@@ -662,7 +679,10 @@ ${praiseMessage}
             card.className = 'bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition';
             card.innerHTML = `
                 <div class="flex justify-between items-start mb-2">
-                    <h4 class="font-bold text-gray-800">${word.word}</h4>
+                    <div class="flex flex-col gap-1">
+                        <h4 class="font-bold text-gray-800">${word.word}</h4>
+                        ${this.getCategoryBadge(word.category)}
+                    </div>
                     <div class="flex space-x-1">
                         <button onclick="app.toggleWordStar('${word.id}')" class="text-yellow-500 hover:text-yellow-600">
                             <i class="${word.is_starred ? 'fas' : 'far'} fa-star"></i>
