@@ -2,13 +2,25 @@
 class LocalStorageDB {
     constructor() {
         this.prefix = 'flashcard_';
+        this.DATA_VERSION = 4;  // 단어 데이터 버전 (올릴 때마다 기본 단어 재로드)
         this.initializeData();
     }
     
     // 초기 데이터 설정
     initializeData() {
-        // words 테이블이 없으면 기본 데이터 생성
-        if (!localStorage.getItem(this.prefix + 'words')) {
+        const savedVersion = parseInt(localStorage.getItem(this.prefix + 'data_version') || '0', 10);
+        const needsReset = savedVersion < this.DATA_VERSION;
+
+        // words 테이블이 없거나 버전이 낮으면 기본 데이터 생성
+        if (!localStorage.getItem(this.prefix + 'words') || needsReset) {
+            // 버전 업 시 기존 단어는 별표/학습기록만 보존하고 목록 교체
+            let preservedStars = {};
+            if (needsReset && localStorage.getItem(this.prefix + 'words')) {
+                try {
+                    const old = JSON.parse(localStorage.getItem(this.prefix + 'words') || '[]');
+                    old.forEach(w => { if (w.is_starred) preservedStars[w.word] = true; });
+                } catch(e) {}
+            }
             const now = new Date().toISOString();
             const make = (id, word, meaning, difficulty, category) => ({
                 id: String(id), word, meaning, difficulty, category,
@@ -249,7 +261,15 @@ class LocalStorageDB {
                 make(219, 'design system',   '디자인 시스템',               3, '디자인'),
                 make(220, 'accessibility',   '접근성',                    3, '디자인'),
             ];
+            // 별표 복원 (버전 업 시)
+            if (Object.keys(preservedStars).length > 0) {
+                defaultWords.forEach(w => {
+                    if (preservedStars[w.word]) w.is_starred = true;
+                });
+            }
+
             localStorage.setItem(this.prefix + 'words', JSON.stringify(defaultWords));
+            localStorage.setItem(this.prefix + 'data_version', String(this.DATA_VERSION));
         }
         
         // 다른 테이블들도 초기화
